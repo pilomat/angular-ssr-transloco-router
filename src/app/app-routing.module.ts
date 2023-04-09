@@ -1,16 +1,50 @@
-import { NgModule } from '@angular/core';
-import { Routes, RouterModule } from '@angular/router';
+import {InjectionToken, Injector, NgModule} from '@angular/core';
+import {Routes, RouterModule, Router} from '@angular/router';
 import {
   localizeRouterConfig,
   LocalizeRouterModule,
-  LOCALIZE_ROUTER_CONFIG,
+  LOCALIZE_ROUTER_CONFIG, LocalizeRouterConfig, LocalizeParser, CacheMechanism,
 } from '@penleychan/ngx-transloco-router';
 
-import { HomeComponent } from './modules/general/home/home.component';
-import { NotFoundComponent } from './modules/general/not-found/not-found.component';
+import {HomeComponent} from './modules/general/home/home.component';
+import {NotFoundComponent} from './modules/general/not-found/not-found.component';
+import {TranslocoService} from "@ngneat/transloco";
+import {Location} from "@angular/common"
+import {DeviceDetectorService} from "ngx-device-detector";
+
+const MOBILE_ROUTERS = new InjectionToken('mobileRouterResolver');
+export class RouterLocalizeParser extends LocalizeParser {
+
+  load(routes: Routes): Promise<any> {
+
+    return new Promise((resolve: any) => {
+      this.deviceDetectorService.isMobile() ? this.init(this.mobileRouters).then(resolve) : this.init(routes).then(resolve)
+    });
+  }
+
+  constructor(
+    translateService: TranslocoService,
+    location1: Location,
+    injector: Injector,
+    private mobileRouters: Routes,
+    private deviceDetectorService: DeviceDetectorService
+  ) {
+    super(translateService, location1, injector.get(LOCALIZE_ROUTER_CONFIG) as LocalizeRouterConfig);
+  }
+}
+
+const mobileRoutes: Routes = [
+  {
+    path: 'about',
+    loadChildren: () =>
+      import('./modules/general/about-mobile/about-mobile.module').then(
+        (mod) => mod.AboutMobileModule
+      ),
+  }
+]
 
 const routes: Routes = [
-  { path: '', component: HomeComponent },
+  {path: '', component: HomeComponent},
 
   {
     path: 'about',
@@ -70,21 +104,35 @@ const routes: Routes = [
         (mod) => mod.ContactModule
       ),
   },
-  { path: '**', component: NotFoundComponent },
+  {path: '**', component: NotFoundComponent},
 ];
 
 @NgModule({
   imports: [
-    RouterModule.forRoot(routes),
-    LocalizeRouterModule.forRoot(routes),
+    RouterModule.forRoot(routes, {
+      initialNavigation: "disabled"
+    }),
+    LocalizeRouterModule.forRoot(routes, {parser: {
+        provide: LocalizeParser,
+        useFactory: (translate: TranslocoService, location: Location, injector: Injector, routers: Routes, detector: DeviceDetectorService) => new RouterLocalizeParser(translate, location, injector, routers, detector),
+        deps: [TranslocoService, Location, Injector, MOBILE_ROUTERS, DeviceDetectorService]
+      }}),
   ],
   providers: [
     {
       provide: LOCALIZE_ROUTER_CONFIG,
-      useValue: localizeRouterConfig(),
+      useValue: localizeRouterConfig({
+        translateRoute: false,
+        initialNavigation: true
+      }),
     },
+    {
+      provide: MOBILE_ROUTERS,
+      useValue: mobileRoutes
+    }
   ],
   exports: [RouterModule, LocalizeRouterModule],
   declarations: [],
 })
-export class AppRoutingModule {}
+export class AppRoutingModule {
+}
