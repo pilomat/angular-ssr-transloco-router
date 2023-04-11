@@ -13,6 +13,7 @@ import {Location} from "@angular/common"
 import {DeviceDetectorService} from "ngx-device-detector";
 
 const MOBILE_ROUTERS = new InjectionToken('mobileRouterResolver');
+
 export class RouterLocalizeParser extends LocalizeParser {
 
   load(routes: Routes): Promise<any> {
@@ -109,21 +110,14 @@ const routes: Routes = [
 
 @NgModule({
   imports: [
-    RouterModule.forRoot(routes, {
-      initialNavigation: "disabled"
-    }),
-    LocalizeRouterModule.forRoot(routes, {parser: {
-        provide: LocalizeParser,
-        useFactory: (translate: TranslocoService, location: Location, injector: Injector, routers: Routes, detector: DeviceDetectorService) => new RouterLocalizeParser(translate, location, injector, routers, detector),
-        deps: [TranslocoService, Location, Injector, MOBILE_ROUTERS, DeviceDetectorService]
-      }}),
+    RouterModule.forRoot(routes),
+    LocalizeRouterModule.forRoot(routes),
   ],
   providers: [
     {
       provide: LOCALIZE_ROUTER_CONFIG,
       useValue: localizeRouterConfig({
-        translateRoute: false,
-        initialNavigation: true
+        defaultLangFunction: () => 'fr'
       }),
     },
     {
